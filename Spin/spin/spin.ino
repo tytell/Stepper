@@ -1,5 +1,6 @@
-int motorStepPin = 1;
-int motorDirPin = 2;
+int motorStepPin = 2;
+int motorDirPin = 4;
+int motorEnablePin = 3;
 int stepsperrev = 2048;
 int outputrate = 10000;
 int sampledelay;
@@ -27,14 +28,20 @@ void loop()
     if (rate1 != 0) {
       spinrate = rate1;
     }
-  }
-  
-  if (spinrate > 0) {
     samplesperstep = int(outputrate / (abs(spinrate) * stepsperrev) + 0.5);
-    if (samplesperstep <= 1)
+    if (samplesperstep <= 1) {
       Serial.println("Error: movement too fast");
       samplesperstep = 0;
     }
+    else {
+      Serial.print("Output delay (us): ");
+      Serial.println(sampledelay);
+      Serial.print("samplesperstep: ");
+      Serial.println(samplesperstep);
+    }
+  }
+  
+  if (spinrate > 0) {
   
     cursamp++;
     if (cursamp == samplesperstep) {
