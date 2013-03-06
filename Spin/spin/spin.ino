@@ -1,14 +1,16 @@
+#include <TimerOne.h>
 #include <Encoder.h>
 
 int motorStepPin = 4;
 int motorDirPin = 6;
 int motorEnablePin = 5;
 int stepsperrev = 6400;
-long pulsedelay, pulsedelay2;
-// length of time to output a pulse and read the encoder in us
+long pulsedelay;
+// length of time to read the encoder in us
 // determined by oscilloscope.  And there's a bunch of jitter,
 // so this is an eyeball average
-int readdur = 88;
+int readdur = 80;
+long sampledelay = 10;  // msec
 
 float spinrate = 0;
 
@@ -24,6 +26,9 @@ void setup()
   pinMode(motorDirPin, OUTPUT);
   pinMode(motorEnablePin, OUTPUT);
   digitalWrite(motorEnablePin, HIGH);
+
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(doStep);
 }
 
 void loop()
@@ -32,12 +37,15 @@ void loop()
   
   if (Serial.available()) {
     spinrate = Serial.parseFloat();
-    pulsedelay = 1000000 / (abs(spinrate) * stepsperrev) - readdur;
+    pulsedelay = 1000000 / (abs(spinrate) * stepsperrev);
     Serial.print("Pulse delay (us): ");
     Serial.println(pulsedelay);
     if (pulsedelay <= 0) {
       Serial.println("Error: movement too fast");
       spinrate = 0;
+    }
+    else {
+      Timer1.setPeriod(pulsedelay);
     }
     
     // set the direction
@@ -49,15 +57,18 @@ void loop()
     }
   }
   
+  pos1 = encoder.read();
+  Serial.println(pos1);
+  delay(sampledelay);  
+}
+
+void doStep()
+{
   if (spinrate != 0) {
-    pos1 = encoder.read();
     digitalWrite(motorStepPin, HIGH);
     digitalWrite(motorStepPin, LOW);
-    Serial.write(pos1);
-    delayMicroseconds(pulsedelay);
   }
 }
-      
     
   
     
