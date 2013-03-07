@@ -7,7 +7,7 @@ PROGMEM  prog_uchar sine256[]  = {
   242,243,244,245,247,248,249,249,250,251,252,252,253,253,253,254,254,254,254,254,254,254,253,253,253,252,252,251,250,249,249,248,247,245,244,243,242,240,239,238,236,234,233,231,229,227,225,223,
   221,219,217,215,212,210,208,205,203,200,198,195,192,190,187,184,181,178,176,173,170,167,164,161,158,155,152,149,146,143,139,136,133,130,127,124,121,118,115,111,108,105,102,99,96,93,90,87,84,81,78,
   76,73,70,67,64,62,59,56,54,51,49,46,44,42,39,37,35,33,31,29,27,25,23,21,20,18,16,15,14,12,11,10,9,7,6,5,5,4,3,2,2,1,1,1,0,0,0,0,0,0,0,1,1,1,2,2,3,4,5,5,6,7,9,10,11,12,14,15,16,18,20,21,23,25,27,29,31,
-  33,35,37,39,42,44,46,49,51,54,56,59,62,64,67,70,73,76,78,81,84,87,90,93,96,99,102,105,108,111,115,118,121,124
+  33,35,37,39,42,44,46,49,51,54,56,59,62,64,67,70,73,76,78,81,84,87,90,93,96,99,102,105,108,111,115,118,121,124,127
 };
 
 int motorStepPin = 4;
@@ -15,15 +15,16 @@ int motorDirPin = 6;
 int motorEnablePin = 5;
 int stepsperrev = 6400;
 
-float sinefreq = 0;
-float sineamp = 0;
+float sinefreq = 1;
+float sineamp = 30;
+int first = 1;
 
 long stepdelay = 50;
-unsigned int d;
+float d;
 long pos;
-unsigned int sinestep;
+float sinestep;
 
-unsigned int count = 0;
+float count = 0;
 
 // Encoder pins.  Need to have interrupts on the pins, and on
 // this Arduino, that's only 2 and 3
@@ -31,15 +32,15 @@ unsigned int count = 0;
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(57600);
   
   pinMode(motorStepPin, OUTPUT);
   pinMode(motorDirPin, OUTPUT);
   pinMode(motorEnablePin, OUTPUT);
   digitalWrite(motorEnablePin, HIGH);
 
-  Timer1.initialize(stepdelay);
-  Timer1.attachInterrupt(doStep);
+  //Timer1.initialize(stepdelay);
+  //Timer1.attachInterrupt(doStep);
 }
 
 void loop()
@@ -47,9 +48,10 @@ void loop()
   float maxspeed;
   long mindelay;
   
-  if (Serial.available()) {
-    sinefreq = Serial.parseFloat();
-    sineamp = Serial.parseFloat();
+  if (first == 1) {
+    first = 0;  
+    // sinefreq = Serial.parseFloat();
+    // sineamp = Serial.parseFloat();
 
     maxspeed = 2*3.14159*sineamp/360*sinefreq;
     mindelay = 1000000 / (abs(maxspeed) * stepsperrev);
@@ -57,8 +59,8 @@ void loop()
     Serial.print("Min delay (us): ");
     Serial.println(mindelay);
     
-    d = mindelay * 65536 * sinefreq / 1000000;
-    sinestep = sineamp * stepsperrev / 360 / 256;
+    d = float(mindelay) / 1000000 * sinefreq * 256;
+    sinestep = sineamp/360 * stepsperrev / 127;
 
     Serial.print("d: ");
     Serial.println(d);
@@ -71,9 +73,11 @@ void loop()
       sinefreq = 0;
     }
     else {
-      Timer1.setPeriod(mindelay);
+      //Timer1.setPeriod(mindelay);
     }    
   }
+  doStep();
+  delay(10);
 }
 
 void doStep()
@@ -83,26 +87,34 @@ void doStep()
   long newpos;
   
   if (sinefreq > 0) {
-    ind = count >> 8;
-    mid = count % 256;
+    //ind = count >> 8;
+    //mid = count % 256;
+    ind = int(count);
+    mid = count-ind;
     
     ab = pgm_read_word_near(sine256 + ind);    
     a = highByte(ab);
     b = lowByte(ab);
     
-    newpos = (a + (b-a)*256/mid - 127) * sinestep;
+    newpos = (a + (b-a)*mid - 127) * sinestep;
+    Serial.println(newpos);
     if (newpos > pos) {
-      digitalWrite(motorStepPin, HIGH);
-      digitalWrite(motorStepPin, LOW);
-      digitalWrite(motorDirPin, HIGH);
+//      Serial.println(pos);
+      // digitalWrite(motorStepPin, HIGH);
+      // digitalWrite(motorStepPin, LOW);
+      // digitalWrite(motorDirPin, HIGH);
     }
     else if (newpos < pos) {
-      digitalWrite(motorStepPin, HIGH);
-      digitalWrite(motorStepPin, LOW);
-      digitalWrite(motorDirPin, LOW);
+  //    Serial.println(pos);
+      // digitalWrite(motorStepPin, HIGH);
+      // digitalWrite(motorStepPin, LOW);
+      // digitalWrite(motorDirPin, LOW);
     }
     pos = newpos;    
     count += d;
+    if (count >= 256) {
+      count = 0;
+    }
   }
 }
 
