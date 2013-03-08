@@ -1,5 +1,6 @@
 #include <avr/pgmspace.h>
 #include <TimerOne.h>
+#include <Encoder.h>
 
 // table of values of a sine wave
 PROGMEM  prog_uchar sine256[]  = {
@@ -15,20 +16,22 @@ int motorDirPin = 6;
 int motorEnablePin = 5;
 int stepsperrev = 6400;
 
-float sinefreq = 1;
-float sineamp = 30;
+float sinefreq = 0;
+float sineamp = 0;
 int first = 1;
 
 long stepdelay = 50;
-float d;
-long pos;
+word d;
+long cmdpos;
 float sinestep;
 
-float count = 0;
+long encpos;
+
+unsigned int count = 0;
 
 // Encoder pins.  Need to have interrupts on the pins, and on
 // this Arduino, that's only 2 and 3
-// Encoder encoder(2, 3);
+Encoder encoder(2, 3);
 
 void setup()
 {
@@ -39,82 +42,94 @@ void setup()
   pinMode(motorEnablePin, OUTPUT);
   digitalWrite(motorEnablePin, HIGH);
 
-  //Timer1.initialize(stepdelay);
-  //Timer1.attachInterrupt(doStep);
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(doStep);
 }
 
 void loop()
 {
   float maxspeed;
   long mindelay;
+  long pos1;
+  char c;
   
-  if (first == 1) {
-    first = 0;  
-    // sinefreq = Serial.parseFloat();
-    // sineamp = Serial.parseFloat();
-
-    maxspeed = 2*3.14159*sineamp/360*sinefreq;
-    mindelay = 1000000 / (abs(maxspeed) * stepsperrev);
-    
-    Serial.print("Min delay (us): ");
-    Serial.println(mindelay);
-    
-    d = float(mindelay) / 1000000 * sinefreq * 256;
-    sinestep = sineamp/360 * stepsperrev / 127;
-
-    Serial.print("d: ");
-    Serial.println(d);
-    
-    Serial.print("sinestep: ");
-    Serial.println(sinestep);
-
-    if (mindelay <= 10) {
-      Serial.println("Error: movement too fast");
-      sinefreq = 0;
+  if (Serial.available()) {
+    c = Serial.read();
+    if (c == 'f') {
+      sinefreq = Serial.parseFloat();
+      sineamp = Serial.parseFloat();
+      
+      Serial.print("Freq: ");
+      Serial.println(sinefreq);
+      
+      Serial.print("Amp: ");
+      Serial.println(sineamp);
+      
+      sinestep = sineamp/360 * stepsperrev / 127; //sineamp/360 * stepsperrev / 127;
+      d = 256/(4*sinestep);
+  
+      mindelay = 1000000/sinefreq/(65536/d);
+      Serial.print("Min delay (us): ");
+      Serial.println(mindelay);
+          
+      Serial.print("d: ");
+      Serial.println(d);
+      
+      Serial.print("sinestep: ");
+      Serial.println(sinestep);
+  
+      if ((mindelay <= 10) && (4*sinestep > 256)) {
+        Serial.println("Error: movement too fast");
+        sinefreq = 0;
+      }
+      else {
+        Timer1.setPeriod(mindelay);
+      }
+    }
+    else if (c == 'r') {
+      encpos = encoder.read();
+      Serial.write((const uint8_t *)&encpos,4);
+      Serial.write(42);
     }
     else {
-      //Timer1.setPeriod(mindelay);
-    }    
+      delay(10);
+    }
   }
-  doStep();
-  delay(10);
 }
 
 void doStep()
 {
-  unsigned char a, b, ind, mid;
-  unsigned int ab;
+  int a, b;
+  unsigned char ind;
+  int mid;
+  int ab;
   long newpos;
   
   if (sinefreq > 0) {
     //ind = count >> 8;
     //mid = count % 256;
-    ind = int(count);
-    mid = count-ind;
+    ind = count >> 8;
+    mid = count % 256;
     
     ab = pgm_read_word_near(sine256 + ind);    
-    a = highByte(ab);
-    b = lowByte(ab);
+    a = lowByte(ab);
+    b = highByte(ab);
     
-    newpos = (a + (b-a)*mid - 127) * sinestep;
-    Serial.println(newpos);
-    if (newpos > pos) {
-//      Serial.println(pos);
-      // digitalWrite(motorStepPin, HIGH);
-      // digitalWrite(motorStepPin, LOW);
-      // digitalWrite(motorDirPin, HIGH);
+    newpos = (a-127)*sinestep + (b-a)*mid*sinestep/256;
+    if (newpos > cmdpos) {
+      // Serial.println(newpos);
+      digitalWrite(motorStepPin, HIGH);
+      digitalWrite(motorStepPin, LOW);
+      digitalWrite(motorDirPin, HIGH);
     }
-    else if (newpos < pos) {
-  //    Serial.println(pos);
-      // digitalWrite(motorStepPin, HIGH);
-      // digitalWrite(motorStepPin, LOW);
-      // digitalWrite(motorDirPin, LOW);
+    else if (newpos < cmdpos) {
+      // Serial.println(newpos);
+      digitalWrite(motorStepPin, HIGH);
+      digitalWrite(motorStepPin, LOW);
+      digitalWrite(motorDirPin, LOW);
     }
-    pos = newpos;    
+    cmdpos = newpos;    
     count += d;
-    if (count >= 256) {
-      count = 0;
-    }
   }
 }
 
