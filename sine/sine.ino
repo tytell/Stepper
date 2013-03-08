@@ -59,27 +59,27 @@ void loop()
       sinefreq = Serial.parseFloat();
       sineamp = Serial.parseFloat();
       
-      Serial.print("Freq: ");
-      Serial.println(sinefreq);
+      //Serial.print("Freq: ");
+      //Serial.println(sinefreq);
       
-      Serial.print("Amp: ");
-      Serial.println(sineamp);
+      //Serial.print("Amp: ");
+      //Serial.println(sineamp);
       
       sinestep = sineamp/360 * stepsperrev / 127; //sineamp/360 * stepsperrev / 127;
       d = 256/(4*sinestep);
   
       mindelay = 1000000/sinefreq/(65536/d);
-      Serial.print("Min delay (us): ");
-      Serial.println(mindelay);
+      //Serial.print("Min delay (us): ");
+      //Serial.println(mindelay);
           
-      Serial.print("d: ");
-      Serial.println(d);
+      //Serial.print("d: ");
+      //Serial.println(d);
       
-      Serial.print("sinestep: ");
-      Serial.println(sinestep);
+      //Serial.print("sinestep: ");
+      //Serial.println(sinestep);
   
       if ((mindelay <= 10) && (4*sinestep > 256)) {
-        Serial.println("Error: movement too fast");
+        //Serial.println("Error: movement too fast");
         sinefreq = 0;
       }
       else {
@@ -90,9 +90,6 @@ void loop()
       encpos = encoder.read();
       Serial.write((const uint8_t *)&encpos,4);
       Serial.write(42);
-    }
-    else {
-      delay(10);
     }
   }
 }
