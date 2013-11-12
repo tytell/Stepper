@@ -10,7 +10,7 @@ long pulsedelay;
 // determined by oscilloscope.  And there's a bunch of jitter,
 // so this is an eyeball average
 int readdur = 80;
-long sampledelay = 10;  // msec
+long sampledelay = 100;  // msec
 
 float spinrate = 0;
 
@@ -57,8 +57,6 @@ void loop()
     }
   }
   
-  pos1 = encoder.read();
-  Serial.println(pos1);
   delay(sampledelay);  
 }
 
